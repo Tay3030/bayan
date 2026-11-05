@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Баянный тренажёр</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Тренажёр">
+<meta name="theme-color" content="#9b1c2e">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-180.png">
+<link rel="manifest" href="manifest.json">
+<style>
+:root{--bg:#eceef1;--panel:#f8f9fb;--ink:#17181c;--muted:#5d6270;--line:#d3d7de;--accent:#9b1c2e;--accent-ink:#fff;color-scheme:light}
+@media (prefers-color-scheme: dark){:root{--bg:#111215;--panel:#1b1c21;--ink:#eef0f4;--muted:#9aa0ad;--line:#2d2f37;--accent:#e2495d;--accent-ink:#16070a;color-scheme:dark}}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;display:flex;align-items:center;justify-content:center;
+  padding:env(safe-area-inset-top,0px) max(16px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) max(16px,env(safe-area-inset-left,0px));box-sizing:border-box}
+form{width:100%;max-width:360px;background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.bellows{height:10px;background:repeating-linear-gradient(90deg,var(--accent) 0 10px,transparent 10px 14px);opacity:.85}
+.in{padding:18px 18px 20px;display:flex;flex-direction:column;gap:12px}
+h1{margin:0;font-size:22px}
+p{margin:0;color:var(--muted);font-size:14px}
+input[type=password]{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px;width:100%;box-sizing:border-box}
+label{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--muted)}
+button{font:inherit;font-weight:600;background:var(--accent);color:var(--accent-ink);border:0;border-radius:12px;padding:14px;cursor:pointer}
+button:disabled{opacity:.6}
+.err{color:var(--accent);font-weight:500;min-height:1.4em}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<form id="f" hidden>
+  <div class="bellows"></div>
+  <div class="in">
+    <h1>Баянный тренажёр</h1>
+    <p>Введите пароль. Ноты внутри зашифрованы.</p>
+    <input type="password" id="pw" autocomplete="current-password" placeholder="Пароль" aria-label="Пароль">
+    <label><input type="checkbox" id="rem" checked> Запомнить на этом устройстве</label>
+    <button id="go">Открыть</button>
+    <div class="err" id="err" role="alert"></div>
+  </div>
+</form>
+<script>
+const P=/*PAYLOAD*/null;
+const KEY='bayan:pw';
+const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const ls={get(){try{return localStorage.getItem(KEY)}catch(e){return null}},set(v){try{v?localStorage.setItem(KEY,v):localStorage.removeItem(KEY)}catch(e){}}};
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+async function decrypt(pw){
+  const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
+  const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:b64(P.salt),iterations:P.iter,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['decrypt']);
+  const buf=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64(P.iv)},key,b64(P.ct));
+  return new TextDecoder().decode(buf);
+}
+function show(html){ document.open(); document.write(html); document.close(); }
+const f=document.getElementById('f'), err=document.getElementById('err'), go=document.getElementById('go');
+f.addEventListener('submit',async e=>{
+  e.preventDefault(); const pw=document.getElementById('pw').value; if(!pw) return;
+  go.disabled=true; go.textContent='Открываю…'; err.textContent='';
+  try{ const html=await decrypt(pw); ls.set(document.getElementById('rem').checked?pw:null); show(html); }
+  catch(x){ go.disabled=false; go.textContent='Открыть'; err.textContent=window.crypto&&crypto.subtle?'Неверный пароль. Проверьте раскладку и регистр.':'Браузер не поддерживает расшифровку. Откройте страницу в Safari или Chrome.'; }
+});
+(async()=>{
+  const saved=ls.get();
+  if(saved){ try{ show(await decrypt(saved)); return; }catch(e){ ls.set(null); } }
+  f.hidden=false; document.getElementById('pw').focus();
+})();
+</script>
+</body>
+</html>
