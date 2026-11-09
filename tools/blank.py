@@ -53,15 +53,17 @@ document.querySelectorAll('.paper').forEach(div=>{
   ABCJS.renderAbc(div,abc,{add_classes:true,staffwidth:664,scale:1,paddingtop:0,paddingbottom:0,paddingleft:4,paddingright:4});
   const svg=div.querySelector('svg');
   const add=(tag,at)=>{const e=document.createElementNS(NS,tag);for(const k in at)e.setAttribute(k,at[k]);svg.appendChild(e);return e;};
-  const sys={};
+  const sys={}, per=PER_;
   svg.querySelectorAll('.abcjs-staff').forEach(st=>{const l=+/abcjs-l(\\d+)/.exec(st.getAttribute('class'))[1];(sys[l]=sys[l]||[]).push(st.getBBox());});
+  let x0=0, xe=1e9;
+  Object.keys(sys).forEach(l=>{ svg.querySelectorAll('.abcjs-l'+l+'.abcjs-clef,.abcjs-l'+l+'.abcjs-key-signature,.abcjs-l'+l+'.abcjs-time-signature').forEach(e=>{const b=e.getBBox(); x0=Math.max(x0,b.x+b.width);}); sys[l].forEach(s=>{xe=Math.min(xe,s.x+s.width);}); });
+  x0+=8; svg.querySelectorAll('.abcjs-bar').forEach(e=>e.parentNode.removeChild(e));
+  const bw=(xe-x0)/per;
   Object.keys(sys).forEach(l=>{
     const st=sys[l].sort((a,b)=>a.y-b.y), top=st[0].y, bot=st[st.length-1].y+st[st.length-1].height;
-    const bars=[...svg.querySelectorAll('.abcjs-bar.abcjs-l'+l)].map(b=>b.getBBox()).filter(b=>b.y<st[0].y+st[0].height+2).map(b=>b.x+b.width/2).sort((a,b)=>a-b);
-    let x0=0; svg.querySelectorAll('.abcjs-l'+l+'.abcjs-clef,.abcjs-l'+l+'.abcjs-key-signature,.abcjs-l'+l+'.abcjs-time-signature').forEach(e=>{const b=e.getBBox(); x0=Math.max(x0,b.x+b.width);});
-    const edges=[x0+6]; bars.forEach(x=>{ if(x-edges[edges.length-1]>20) edges.push(x); else edges[edges.length-1]=Math.max(edges[edges.length-1],x); });
-    for(let i=0;i+1<edges.length;i++){
-      const a=edges[i], z=edges[i+1], pad=Math.min(14,(z-a)*0.08), w=(z-a-pad-4)/BEATS;
+    for(let i=1;i<=per;i++){ const x=i===per?xe-0.4:x0+i*bw; add('line',{x1:x,x2:x,y1:top,y2:bot,stroke:'#000','stroke-width':0.8}); }
+    for(let i=0;i<per;i++){
+      const a=x0+i*bw, pad=Math.min(14,bw*0.08), w=(bw-pad-4)/BEATS;
       for(let k=0;k<BEATS;k++){
         const x=a+pad+k*w;
         st.forEach(s=>{
@@ -80,7 +82,7 @@ document.querySelectorAll('.paper').forEach(div=>{
 document.title='ready';
 </script></body></html>"""
 html = (html.replace('FS', FS).replace('PAGES', ''.join(pages)).replace('ABCJS"', ABCJS + '"')
-        .replace('const abc=ABC', 'const abc=' + json.dumps(abc)).replace('NBEATS', str(beats)).replace('MARKE', 'true' if 'e' in MARKS else 'false').replace('MARKS_', 'true' if 's' in MARKS else 'false'))
+        .replace('const abc=ABC', 'const abc=' + json.dumps(abc)).replace('NBEATS', str(beats)).replace('PER_', str(PER)).replace('MARKE', 'true' if 'e' in MARKS else 'false').replace('MARKS_', 'true' if 's' in MARKS else 'false'))
 open('/home/claude/blanks/_blank.html', 'w').write(html)
 with sync_playwright() as p:
     b = p.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--allow-file-access-from-files'])
