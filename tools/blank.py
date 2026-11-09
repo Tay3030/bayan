@@ -1,13 +1,13 @@
 # Blank manuscript sheets for the teacher: grand staff (treble + bass), equal bars,
-# dashed line at the start of every beat, a dot on every second eighth.
-# usage: python3 blank.py METER ABC_KEY "KEY_RU" out.pdf [pages=2] [systems=6] [bars=4] [staffsep=46] [sysstaffsep=58]
+# dashed line at the start of every beat, thin ticks for eighths (and optionally sixteenths).
+# usage: python3 blank.py METER ABC_KEY "KEY_RU" out.pdf [pages=2] [systems=5] [bars=4] [staffsep=40] [sysstaffsep=44] [marks=e|s|es|-]
 import sys, json
 from playwright.sync_api import sync_playwright
 
 meter, key, key_ru, out = sys.argv[1:5]
-a = sys.argv[5:] + [None] * 5
-PAGES = int(a[0] or 2); SYSTEMS = int(a[1] or 6); PER = int(a[2] or 4)
-STAFFSEP = int(a[3] or 46); SYSSEP = int(a[4] or 58)
+a = sys.argv[5:] + [None] * 6
+PAGES = int(a[0] or 2); SYSTEMS = int(a[1] or 5); PER = int(a[2] or 4)
+STAFFSEP = int(a[3] or 40); SYSSEP = int(a[4] or 44); MARKS = a[5] or 'e'
 beats, unit = map(int, meter.split('/'))
 FS = '/tmp/claude-0/-home-claude/16ce2008-663e-5a03-8c35-c560387555d3/scratchpad/fonts/node_modules/@fontsource/golos-text/files'
 ABCJS = '/tmp/abc/node_modules/abcjs/dist/abcjs-basic-min.js'
@@ -26,7 +26,7 @@ for i in range(PAGES):
     head = (f'<div class="head"><div><b>Название:</b> <span class="line"></span></div>'
             f'<div><b>{meter} · {key_ru}</b> &nbsp; Темп: <span class="small"></span></div></div>') if i == 0 else \
            f'<div class="cont">{meter} · {key_ru} · лист {i + 1}</div>'
-    foot = ('<div class="foot">Пунктир — начало каждой доли ({b} в такте), точка — вторая восьмая доли. '
+    foot = ('<div class="foot">Пунктир — начало каждой доли ({b} в такте).' + (' Тонкий штрих под станом — вторая восьмая.' if 'e' in MARKS else '') + (' Короткие штрихи — шестнадцатые.' if 's' in MARKS else '') + ' '
             'Ноту пишите у своего пунктира. Над нижним станом — буква аккорда (м / Б / 7), '
             'под ним — название баса (ре, ля, соль…).</div>').format(b=beats) if i == 0 else ''
     pages.append(f'<section class="pg">{head}<div class="paper"></div>{foot}</section>')
@@ -48,9 +48,9 @@ html,body{margin:0;padding:0;background:#fff;color:#000;font-family:Golos,sans-s
 </style></head><body>PAGES
 <script src="file://ABCJS"></script>
 <script>
-const abc=ABC, BEATS=NBEATS, NS='http://www.w3.org/2000/svg';
+const abc=ABC, BEATS=NBEATS, ME=MARKE, MS=MARKS_, NS='http://www.w3.org/2000/svg';
 document.querySelectorAll('.paper').forEach(div=>{
-  ABCJS.renderAbc(div,abc,{add_classes:true,staffwidth:730,scale:1,paddingtop:0,paddingbottom:0,paddingleft:4,paddingright:4});
+  ABCJS.renderAbc(div,abc,{add_classes:true,staffwidth:664,scale:1,paddingtop:0,paddingbottom:0,paddingleft:4,paddingright:4});
   const svg=div.querySelector('svg');
   const add=(tag,at)=>{const e=document.createElementNS(NS,tag);for(const k in at)e.setAttribute(k,at[k]);svg.appendChild(e);return e;};
   const sys={};
@@ -66,7 +66,8 @@ document.querySelectorAll('.paper').forEach(div=>{
         const x=a+pad+k*w;
         st.forEach(s=>{
           add('line',{x1:x,x2:x,y1:s.y,y2:s.y+s.height+1.5,stroke:'#8a8a8a','stroke-width':0.7,'stroke-dasharray':'3 3'});
-          add('circle',{cx:x+w/2,cy:s.y+s.height+5,r:0.9,fill:'#c8c8c8'});
+          const yb=s.y+s.height+3, tk=(xx,l,c)=>add('line',{x1:xx,x2:xx,y1:yb,y2:yb+l,stroke:c,'stroke-width':0.55,'stroke-linecap':'round'});
+          if(ME) tk(x+w/2,4,'#b4b4b4'); if(MS){ tk(x+w/4,2.6,'#c6c6c6'); tk(x+3*w/4,2.6,'#c6c6c6'); }
         });
       }
     }
@@ -79,7 +80,7 @@ document.querySelectorAll('.paper').forEach(div=>{
 document.title='ready';
 </script></body></html>"""
 html = (html.replace('FS', FS).replace('PAGES', ''.join(pages)).replace('ABCJS"', ABCJS + '"')
-        .replace('const abc=ABC', 'const abc=' + json.dumps(abc)).replace('NBEATS', str(beats)))
+        .replace('const abc=ABC', 'const abc=' + json.dumps(abc)).replace('NBEATS', str(beats)).replace('MARKE', 'true' if 'e' in MARKS else 'false').replace('MARKS_', 'true' if 's' in MARKS else 'false'))
 open('/home/claude/blanks/_blank.html', 'w').write(html)
 with sync_playwright() as p:
     b = p.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--allow-file-access-from-files'])
