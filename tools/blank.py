@@ -64,9 +64,10 @@ document.querySelectorAll('.paper').forEach(div=>{
       const a=edges[i], z=edges[i+1], pad=Math.min(14,(z-a)*0.08), w=(z-a-pad-4)/BEATS;
       for(let k=0;k<BEATS;k++){
         const x=a+pad+k*w;
-        add('line',{x1:x,x2:x,y1:top-6,y2:bot+6,stroke:'#8a8a8a','stroke-width':0.7,'stroke-dasharray':'3 3'});
-        add('text',{x:x,y:top-10,'font-size':7.5,fill:'#9a9a9a','text-anchor':'middle','font-family':'Golos'}).textContent=k+1;
-        st.forEach(s=>add('circle',{cx:x+w/2,cy:s.y+s.height+6,r:1.4,fill:'#7a7a7a'}));
+        st.forEach(s=>{
+          add('line',{x1:x,x2:x,y1:s.y,y2:s.y+s.height+1.5,stroke:'#8a8a8a','stroke-width':0.7,'stroke-dasharray':'3 3'});
+          add('circle',{cx:x+w/2,cy:s.y+s.height+5,r:0.9,fill:'#c8c8c8'});
+        });
       }
     }
   });
