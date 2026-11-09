@@ -1,5 +1,5 @@
 // Offline support: always try the network first (so updates arrive), fall back to the saved copy.
-const CACHE='bayan-v9';
+const CACHE='bayan-v10';
 self.addEventListener('install',e=>{ self.skipWaiting(); e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./','./index.html','./manifest.json','./icon-180.png','./icon-512.png']).catch(()=>{}))); });
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch',e=>{
